@@ -1,0 +1,358 @@
+<!doctype html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>メッシ ワールドカップ得点 予測マシン</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Yomogi&display=swap" rel="stylesheet">
+<script src="https://cdnjs.cloudflare.com/ajax/libs/roughjs/4.6.6/rough.min.js"></script>
+<style>
+  :root{
+    --ink:#1a1a1a; --paper:#fbfaf6; --line:#1a1a1a;
+    --danger:#e23b2e; --trend:#b9b4a8; --muted:#6f6a5e; --chip:#fffef9;
+    --shadow:2px 3px 0 rgba(26,26,26,.18);
+    --hand:'Patrick Hand','Yomogi','Comic Sans MS',cursive;
+  }
+  *{box-sizing:border-box}
+  html,body{margin:0;background:var(--paper);color:var(--ink);font-family:var(--hand)}
+  body{padding:22px 16px 56px;line-height:1.5}
+  .wrap{max-width:1000px;margin:0 auto}
+  header{text-align:center;margin-bottom:8px}
+  h1{font-size:clamp(26px,5vw,40px);margin:0;letter-spacing:.04em}
+  .sub{font-size:clamp(14px,2.4vw,19px);color:var(--muted);margin-top:2px}
+  .src{font-size:12px;color:var(--muted);margin-top:6px}
+
+  .board{position:relative;border:2.5px solid var(--line);border-radius:14px;background:#fff;
+    box-shadow:var(--shadow);padding:10px 10px 4px;margin:16px 0;}
+  svg.plot{width:100%;height:auto;display:block;touch-action:none}
+
+  .eqbox{position:absolute;top:7%;left:9%;max-width:48%;
+    background:rgba(255,255,255,.86);border:2px dashed var(--line);border-radius:10px;
+    padding:7px 11px;line-height:1.35;pointer-events:none}
+  .eqbox .eqname{font-size:13px;color:var(--muted)}
+  .eqbox .eqf{font-size:clamp(14px,2vw,17px);color:var(--ink);word-break:break-word}
+  .eqbox .eqt{font-size:11px;color:var(--muted);margin-top:3px}
+  @media(max-width:760px){.eqbox{max-width:74%}}
+
+  .grid{display:grid;grid-template-columns:1.1fr .9fr;gap:18px}
+  @media(max-width:760px){.grid{grid-template-columns:1fr}}
+  .panel{border:2.5px solid var(--line);border-radius:14px;background:var(--chip);
+    box-shadow:var(--shadow);padding:14px 16px;}
+  .panel h2{font-size:18px;margin:0 0 10px;letter-spacing:.03em}
+  .panel h2 .tag{font-size:12px;color:var(--muted);font-weight:normal}
+
+  .chips{display:flex;flex-wrap:wrap;gap:8px}
+  .chip{font-family:var(--hand);font-size:15px;cursor:pointer;border:2px solid var(--line);
+    border-radius:20px;background:#fff;padding:5px 13px;box-shadow:1px 2px 0 rgba(26,26,26,.14);
+    transition:transform .05s ease, background .12s ease;}
+  .chip:hover{transform:translateY(-1px)}
+  .chip:focus-visible{outline:3px solid var(--danger);outline-offset:2px}
+  .chip[aria-pressed="true"]{background:var(--ink);color:#fff}
+  .chip small{display:block;font-size:11px;opacity:.7;letter-spacing:0}
+
+  .ctl{margin-top:16px}
+  .ctl label{display:block;font-size:15px;margin-bottom:6px}
+  .yearout{font-size:30px;border-bottom:2px dashed var(--line);padding:0 4px}
+  input[type=range]{width:100%;accent-color:var(--danger);height:26px}
+
+  .toggle{display:flex;align-items:flex-start;gap:10px;margin-top:18px;
+    border-top:1.5px dashed var(--trend);padding-top:14px}
+  .toggle input{width:22px;height:22px;margin-top:2px;accent-color:var(--danger);flex:none}
+  .toggle .txt small{display:block;color:var(--muted);font-size:12.5px;margin-top:2px}
+
+  .vnum{font-size:clamp(40px,9vw,68px);line-height:1;color:var(--danger);word-break:break-all}
+  .vunit{font-size:18px;color:var(--muted)}
+  .vcap{font-size:17px;margin-top:10px}
+  .meta{font-size:13px;color:var(--muted);margin-top:12px;border-top:1.5px dashed var(--trend);padding-top:10px}
+  .meta b{color:var(--ink)}
+  .counter{font-size:14px;margin-top:8px;background:#fff;border:2px dashed var(--line);border-radius:10px;padding:8px 11px}
+
+  footer{max-width:760px;margin:26px auto 0;text-align:center;font-size:15px;color:var(--muted)}
+  .legend{display:flex;gap:18px;justify-content:center;flex-wrap:wrap;font-size:13px;color:var(--muted);margin-top:2px}
+  .legend span{display:inline-flex;align-items:center;gap:6px}
+  .sw{width:24px;height:0;border-top:3px solid var(--ink)}
+  .sw.dash{border-top:3px dashed var(--danger)}
+  .note{font-size:12.5px;color:var(--muted);text-align:center;margin-top:4px}
+  @media(prefers-reduced-motion:reduce){*{transition:none!important}}
+</style>
+</head>
+<body>
+<div class="wrap">
+  <header>
+    <h1>リオネル・メッシ</h1>
+    <div class="sub">ワールドカップ 1試合あたり得点 ＝ <b>予測マシン</b></div>
+    <div class="src">実データ：2006(1G/3試合)・2010(0/5)・2014(4/7)・2018(1/4)・2022(7/7)。2026は「現時点」のジョーク点（3G/1試合）。</div>
+  </header>
+
+  <div class="board">
+    <div class="eqbox" id="eqbox"></div>
+    <svg class="plot" viewBox="0 0 820 520" role="img"
+      aria-label="メッシのワールドカップ得点と、選択した回帰モデルによる外挿曲線。縦軸は予測値に合わせて自動調整。"></svg>
+    <div class="legend">
+      <span><i class="sw"></i> 実データ（〜2026）</span>
+      <span><i class="sw dash"></i> 外挿（未来＝でっち上げ）</span>
+    </div>
+    <div class="note">※ 縦軸は予測値に合わせて自動スケール。予測が暴走するほど、実データは下に潰れていきます——それも外挿の迫力。</div>
+  </div>
+
+  <div class="grid">
+    <div class="panel">
+      <h2>① モデルを選ぶ <span class="tag">同じデータ・違う物語</span></h2>
+      <div class="chips" id="models"></div>
+      <div class="ctl">
+        <label>② 予測する大会：<span class="yearout" id="yearOut">2040</span> 年</label>
+        <input type="range" id="yr" min="0" max="5" step="1" value="3" aria-label="予測する大会の年">
+      </div>
+      <div class="toggle">
+        <input type="checkbox" id="joke" checked>
+        <div class="txt">
+          <label for="joke" style="margin:0;cursor:pointer">③ 2026年のジョーク点（3.0）を入れる</label>
+          <small>1試合だけの3ゴールを「平均」として混入。たった1点が外挿をどれだけ歪めるか体感してください。</small>
+        </div>
+      </div>
+    </div>
+    <div class="panel">
+      <h2>予測結果 <span class="tag" id="modelName"></span></h2>
+      <div><span class="vnum" id="vnum">–</span> <span class="vunit">ゴール／試合</span></div>
+      <div class="vcap" id="vcap"></div>
+      <div class="counter" id="counter"></div>
+      <div class="meta" id="meta"></div>
+    </div>
+  </div>
+
+  <footer>
+    <div style="margin-top:10px">— つまり、歴史的事象に同じデータを当てはめても、モデル次第で「未来」はいくらでも作れます。</div>
+  </footer>
+</div>
+
+<script>
+/* ============ データ ============ */
+const RAW=[
+  {year:2006,t:1,g:1,a:3},{year:2010,t:2,g:0,a:5},{year:2014,t:3,g:4,a:7},
+  {year:2018,t:4,g:1,a:4},{year:2022,t:5,g:7,a:7},{year:2026,t:6,g:3,a:1,joke:true},
+].map(d=>({...d,y:d.g/d.a}));
+const YEARS=[2030,2034,2038,2042,2046,2050];
+const yearToT=y=>(y-2006)/4+1;
+
+/* ============ 線形代数 ============ */
+function solve(A,b){const n=b.length,M=A.map((r,i)=>[...r,b[i]]);
+  for(let c=0;c<n;c++){let p=c;for(let r=c+1;r<n;r++)if(Math.abs(M[r][c])>Math.abs(M[p][c]))p=r;
+    [M[c],M[p]]=[M[p],M[c]];if(Math.abs(M[c][c])<1e-12)continue;
+    for(let r=0;r<n;r++){if(r===c)continue;const f=M[r][c]/M[c][c];for(let k=c;k<=n;k++)M[r][k]-=f*M[c][k];}}
+  return M.map((row,i)=>Math.abs(M[i][i])<1e-12?0:row[n]/M[i][i]);}
+function comb(n,k){let r=1;for(let j=0;j<k;j++)r=r*(n-j)/(j+1);return r;}
+const CX=3.5;
+function polyfit(xs,ys,deg){const X=xs.map(x=>x-CX),A=[],b=[];
+  for(let i=0;i<=deg;i++){const row=[];for(let j=0;j<=deg;j++){let s=0;for(const x of X)s+=Math.pow(x,i+j);row.push(s);}
+    A.push(row);let sb=0;for(let k=0;k<X.length;k++)sb+=ys[k]*Math.pow(X[k],i);b.push(sb);}
+  const c=solve(A,b);
+  const f=t=>{let s=0,xx=t-CX;for(let i=0;i<c.length;i++)s+=c[i]*Math.pow(xx,i);return s;};
+  return {f,coef:c};}
+function expandPoly(c){const n=c.length,mono=new Array(n).fill(0);
+  for(let i=0;i<n;i++)for(let k=0;k<=i;k++)mono[k]+=c[i]*comb(i,k)*Math.pow(-CX,i-k);
+  return mono;}
+function linfit(xs,ys){const n=xs.length;let sx=0,sy=0,sxx=0,sxy=0;
+  for(let i=0;i<n;i++){sx+=xs[i];sy+=ys[i];sxx+=xs[i]*xs[i];sxy+=xs[i]*ys[i];}
+  const b=(n*sxy-sx*sy)/(n*sxx-sx*sx),a=(sy-b*sx)/n;return {a,b};}
+function r2(data,f){const m=data.reduce((s,d)=>s+d.y,0)/data.length;
+  let ssr=0,sst=0;for(const d of data){ssr+=(d.y-f(d.t))**2;sst+=(d.y-m)**2;}
+  return sst<1e-12?1:1-ssr/sst;}
+
+/* ============ 数式整形 ============ */
+function sig(x){if(!isFinite(x))return '∞';if(x===0)return '0';
+  const a=Math.abs(x);if(a>=1e4||a<1e-2)return x.toExponential(1);
+  return ''+(+x.toPrecision(3));}
+const SUP={2:'²',3:'³',4:'⁴',5:'⁵'};
+function tvar(k){return k===0?'':k===1?'t':'t'+(SUP[k]||'^'+k);}
+function polyEq(mono){let s='y = ',first=true;
+  for(let k=mono.length-1;k>=0;k--){let c=mono[k];if(!isFinite(c))c=0;
+    const a=Math.abs(c);if(k>0&&a<1e-4)continue;
+    const term=sig(a)+(k>0?'·'+tvar(k):'');
+    if(first){s+=(c<0?'−':'')+term;first=false;}else s+=(c<0?' − ':' + ')+term;}
+  return first?'y = 0':s;}
+
+/* ============ モデル群（f と eq を返す） ============ */
+const clampPos=v=>Math.max(v,0.05);
+function buildModels(data){
+  const xs=data.map(d=>d.t),ys=data.map(d=>d.y);
+  const poly=deg=>{const{f,coef}=polyfit(xs,ys,deg);return {f,eq:polyEq(expandPoly(coef))};};
+  const exp=(()=>{const{a,b}=linfit(xs,ys.map(y=>Math.log(clampPos(y))));
+    return {f:t=>Math.exp(a)*Math.exp(b*t),eq:`y = ${sig(Math.exp(a))}·e^(${sig(b)}·t)`};})();
+  const log=(()=>{const{a,b}=linfit(xs.map(Math.log),ys);
+    return {f:t=>a+b*Math.log(t),eq:`y = ${sig(a)} ${b<0?'−':'+'} ${sig(Math.abs(b))}·ln t`};})();
+  const pow=(()=>{const{a,b}=linfit(xs.map(Math.log),ys.map(y=>Math.log(clampPos(y))));
+    return {f:t=>Math.exp(a)*Math.pow(t,b),eq:`y = ${sig(Math.exp(a))}·t^(${sig(b)})`};})();
+  const mean=(()=>{const m=ys.reduce((p,q)=>p+q,0)/ys.length;
+    return {f:()=>m,eq:`y = ${sig(m)}（定数）`};})();
+  const connect=(()=>{const p=data.slice().sort((u,v)=>u.t-v.t);
+    const f=t=>{if(t<=p[0].t){const s=(p[1].y-p[0].y)/(p[1].t-p[0].t);return p[0].y+s*(t-p[0].t);}
+      for(let i=0;i<p.length-1;i++)if(t<=p[i+1].t){const s=(p[i+1].y-p[i].y)/(p[i+1].t-p[i].t);return p[i].y+s*(t-p[i].t);}
+      const i=p.length-2,s=(p[i+1].y-p[i].y)/(p[i+1].t-p[i].t);return p[i+1].y+s*(t-p[i+1].t);};
+    return {f,eq:'折れ線（区分線形・単一の数式なし）'};})();
+  return {linear:poly(1),quad:poly(2),cubic:poly(3),quartic:poly(4),
+    interp:poly(xs.length-1),exp,log,power:pow,mean,connect};
+}
+const META={
+  linear :{name:'線形回帰',           note:'一番正直。だからこそ退屈。'},
+  quad   :{name:'二次多項式',         note:'カーブし始めた。R²も上がる…罠の入口。'},
+  cubic  :{name:'三次多項式',         note:'うねうね。フィットは良いが意味は無い。'},
+  quartic:{name:'四次多項式',         note:'これが「数百ゴール」の正体。'},
+  interp :{name:'多項式（完全補間）', note:'全点を貫通。過去に完璧・未来に無力。'},
+  exp    :{name:'指数関数',           note:'xkcdが愛するやつ。爆発は時間の問題。'},
+  log    :{name:'対数関数',           note:'地味に頭打ち。盛り上がりに欠ける。'},
+  power  :{name:'べき乗則',           note:'それっぽいが、ほぼ何も言っていない。'},
+  mean   :{name:'平均（傾き無し）',   note:'「予測」を諦めた者の安息。'},
+  connect:{name:'点をそのまま結ぶ',   note:'最後の線をただ延ばす。素朴で危険。'},
+};
+const ORDER=['linear','quad','cubic','quartic','interp','exp','log','power','connect','mean'];
+
+/* ============ 軸スケール ============ */
+function niceNum(r,round){if(r<=0)return 1;const e=Math.floor(Math.log10(r)),f=r/Math.pow(10,e);
+  let nf;if(round)nf=f<1.5?1:f<3?2:f<7?5:10;else nf=f<=1?1:f<=2?2:f<=5?5:10;return nf*Math.pow(10,e);}
+function niceScale(lo,hi,n=6){if(!isFinite(lo)||!isFinite(hi)){lo=0;hi=3.5;}if(lo===hi)hi=lo+1;
+  const range=niceNum(hi-lo,false),step=niceNum(range/Math.max(1,n-1),true);
+  const nlo=Math.floor(lo/step)*step,nhi=Math.ceil(hi/step)*step,t=[];
+  for(let v=nlo;v<=nhi+step*0.5;v+=step)t.push(+v.toFixed(6));
+  return {lo:nlo,hi:nhi,step,ticks:t};}
+function axisLabel(v,step){if(Math.abs(v)<step*1e-6)return '0';const a=Math.abs(v);
+  if(a>=1e4)return v.toExponential(0);if(step>=1)return Math.round(v).toLocaleString('ja-JP');
+  if(step>=0.5)return v.toFixed(1);return v.toFixed(2);}
+
+/* ============ 表示用整形 ============ */
+function fmt(v){if(!isFinite(v))return '∞';const a=Math.abs(v);
+  if(a>=1e6)return v.toExponential(1);if(a>=1000)return Math.round(v).toLocaleString('ja-JP');
+  if(a>=10)return v.toFixed(0);return v.toFixed(2);}
+function caption(v,year){const x=fmt(v);
+  if(v<0)return `モデル曰く、${year}年のメッシは1試合 ${x} ゴール。実質オウンゴール製造機。外挿、おそろしい。`;
+  if(v<1.2)return `${year}年は1試合 ${x} ゴールと予測。現実的すぎて、ジョークになりません。`;
+  if(v<4)return `${year}年は1試合 ${x} ゴール。…かろうじて人類の範囲。`;
+  if(v<30)return `この調子だと${year}年、メッシは1試合 ${x} ゴール。1人で相手チームを沈めます。`;
+  if(v<300)return `この調子だと${year}年、1試合あたり ${x} ゴール。物理法則が抗議しています。`;
+  return `この調子だと、${year}年までにメッシは1試合あたり…${x} ゴールを決めることになる。`;}
+
+/* ============ 状態 ＆ UI ============ */
+let state={model:'quartic',yearIdx:3,joke:true};
+const chipsEl=document.getElementById('models');
+ORDER.forEach(id=>{const b=document.createElement('button');
+  b.className='chip';b.type='button';b.dataset.id=id;b.setAttribute('aria-pressed',id===state.model);
+  b.innerHTML=`${META[id].name}<small>${META[id].note}</small>`;
+  b.onclick=()=>{state.model=id;syncChips();render();};chipsEl.appendChild(b);});
+function syncChips(){[...chipsEl.children].forEach(c=>c.setAttribute('aria-pressed',c.dataset.id===state.model));}
+document.getElementById('yr').addEventListener('input',e=>{state.yearIdx=+e.target.value;render();});
+document.getElementById('joke').addEventListener('change',e=>{state.joke=e.target.checked;render();});
+
+/* ============ SVG 描画 ============ */
+const svg=document.querySelector('svg.plot');
+const VB={w:820,h:520},Mg={l:64,r:30,t:30,b:56};
+const PW=VB.w-Mg.l-Mg.r,PH=VB.h-Mg.t-Mg.b;
+const hasRough=typeof rough!=='undefined';const rc=hasRough?rough.svg(svg):null;
+const NS='http://www.w3.org/2000/svg';
+function clear(){while(svg.firstChild)svg.removeChild(svg.firstChild);}
+function add(n){svg.appendChild(n);}
+function rline(x1,y1,x2,y2,o){if(rc)return rc.line(x1,y1,x2,y2,o);
+  const l=document.createElementNS(NS,'line');l.setAttribute('x1',x1);l.setAttribute('y1',y1);
+  l.setAttribute('x2',x2);l.setAttribute('y2',y2);l.setAttribute('stroke',o.stroke||'#000');
+  l.setAttribute('stroke-width',o.strokeWidth||2);if(o.strokeLineDash)l.setAttribute('stroke-dasharray',o.strokeLineDash.join(' '));return l;}
+function rpath(pts,o){if(rc)return rc.linearPath(pts,o);
+  const p=document.createElementNS(NS,'polyline');p.setAttribute('points',pts.map(q=>q.join(',')).join(' '));
+  p.setAttribute('fill','none');p.setAttribute('stroke',o.stroke||'#000');p.setAttribute('stroke-width',o.strokeWidth||2);
+  if(o.strokeLineDash)p.setAttribute('stroke-dasharray',o.strokeLineDash.join(' '));return p;}
+function rcirc(x,y,d,o){if(rc)return rc.circle(x,y,d,o);
+  const c=document.createElementNS(NS,'circle');c.setAttribute('cx',x);c.setAttribute('cy',y);c.setAttribute('r',d/2);
+  c.setAttribute('fill',o.fill||'none');c.setAttribute('stroke',o.stroke||'#000');c.setAttribute('stroke-width',o.strokeWidth||2);return c;}
+function text(x,y,s,o={}){const t=document.createElementNS(NS,'text');t.setAttribute('x',x);t.setAttribute('y',y);
+  t.setAttribute('font-family',"'Patrick Hand','Yomogi','Comic Sans MS',cursive");t.setAttribute('font-size',o.size||16);
+  t.setAttribute('fill',o.fill||'#1a1a1a');t.setAttribute('text-anchor',o.anchor||'start');t.textContent=s;return t;}
+
+function render(){
+  const data=RAW.filter(d=>state.joke||!d.joke);
+  const models=buildModels(data);
+  const M=models[state.model],f=M.f;
+  const targetYear=YEARS[state.yearIdx],startYear=2006;
+  const xPix=y=>Mg.l+(y-startYear)/(targetYear-startYear)*PW;
+  const vTarget=f(yearToT(targetYear));
+
+  /* counterfactual */
+  const otherData=state.joke?RAW.filter(d=>!d.joke):RAW.slice();
+  const vOther=buildModels(otherData)[state.model].f(yearToT(targetYear));
+
+  /* sample curve + compute adaptive y-range */
+  const N=140,samp=[];
+  for(let i=0;i<=N;i++){const yr=startYear+(targetYear-startYear)*i/N;const v=f(yearToT(yr));samp.push({yr,v});}
+  let lo=0,hi=0;const consider=v=>{if(isFinite(v)){if(v<lo)lo=v;if(v>hi)hi=v;}};
+  data.forEach(d=>consider(d.y));samp.forEach(s=>consider(s.v));consider(vTarget);
+  if(hi<=lo)hi=lo+1;const pad=(hi-lo)*0.08;hi+=pad;if(lo<0)lo-=pad;
+  const sc=niceScale(lo,hi,6);
+  const yPix=v=>{let p=Mg.t+(1-(v-sc.lo)/(sc.hi-sc.lo))*PH;return Math.max(Mg.t-44,Math.min(Mg.t+PH+44,p));};
+
+  clear();
+  document.getElementById('yearOut').textContent=targetYear;
+
+  /* y axis + ticks */
+  add(rline(Mg.l,Mg.t-6,Mg.l,Mg.t+PH,{stroke:'#1a1a1a',strokeWidth:2.5,roughness:1,seed:7}));
+  add(rline(Mg.l,Mg.t+PH,Mg.l+PW,Mg.t+PH,{stroke:'#1a1a1a',strokeWidth:2.5,roughness:1,seed:8}));
+  sc.ticks.forEach((v,i)=>{if(v<sc.lo-1e-9||v>sc.hi+1e-9)return;const yy=yPix(v);
+    add(rline(Mg.l-6,yy,Mg.l,yy,{stroke:'#1a1a1a',strokeWidth:1.6,roughness:1,seed:10+i}));
+    add(text(Mg.l-11,yy+5,axisLabel(v,sc.step),{anchor:'end',size:15}));});
+  const ylbl=document.createElementNS(NS,'text');
+  ylbl.setAttribute('x',0);ylbl.setAttribute('y',0);
+  ylbl.setAttribute('transform',`translate(16,${Mg.t+PH/2}) rotate(-90)`);
+  ylbl.setAttribute('font-family',"'Patrick Hand','Yomogi','Comic Sans MS',cursive");
+  ylbl.setAttribute('font-size',13);ylbl.setAttribute('fill','#6f6a5e');
+  ylbl.setAttribute('text-anchor','middle');ylbl.textContent='ゴール/試合';
+  add(ylbl);
+  /* zero reference line when range crosses 0 */
+  if(sc.lo<-1e-9&&sc.hi>1e-9){const zy=yPix(0);
+    add(rline(Mg.l,zy,Mg.l+PW,zy,{stroke:'#b9b4a8',strokeWidth:1.4,roughness:.8,seed:71,strokeLineDash:[3,5]}));}
+
+  /* x ticks (World Cup years) */
+  for(let yr=2006;yr<=targetYear;yr+=4){const xx=xPix(yr);
+    add(rline(xx,Mg.t+PH,xx,Mg.t+PH+6,{stroke:'#1a1a1a',strokeWidth:1.6,roughness:1,seed:50+yr}));
+    if(yr<=2026||yr%8===6||yr===targetYear)
+      add(text(xx,Mg.t+PH+22,(''+yr).slice(2),{anchor:'middle',size:13,fill:'#6f6a5e'}));}
+
+  /* fitted curve: historical (<=2026) vs extrapolation (>2026) */
+  const hist=[],extra=[];
+  samp.forEach(s=>{const pt=[xPix(s.yr),yPix(s.v)];
+    if(s.yr<=2026.0001)hist.push(pt);else{if(hist.length&&!extra.length)extra.push(hist[hist.length-1]);extra.push(pt);}});
+  if(hist.length>1)add(rpath(hist,{stroke:'#1a1a1a',strokeWidth:2.4,roughness:1.1,bowing:1,seed:99}));
+  if(extra.length>1)add(rpath(extra,{stroke:'#e23b2e',strokeWidth:2.6,roughness:1.2,bowing:1,seed:99,strokeLineDash:[9,7]}));
+
+  /* data zigzag + points */
+  const dpts=data.map(d=>[xPix(d.year),yPix(d.y)]);
+  add(rpath(dpts,{stroke:'#1a1a1a',strokeWidth:1.8,roughness:1,seed:21}));
+  data.forEach((d,i)=>{add(rcirc(xPix(d.year),yPix(d.y),11,{fill:'#1a1a1a',fillStyle:'solid',stroke:'#1a1a1a',strokeWidth:1.4,roughness:.9,seed:30+i}));
+    if(d.joke)add(text(xPix(d.year)+9,yPix(d.y)-3,'2026',{size:12,fill:'#e23b2e'}));});
+
+  /* prediction marker + label */
+  if(isFinite(vTarget)){const px=xPix(targetYear),py=yPix(vTarget);
+    add(rcirc(px,py,14,{stroke:'#e23b2e',strokeWidth:2.6,fill:'none',roughness:.9,seed:5}));
+    const ly=Math.min(Math.max(py-12,Mg.t+12),Mg.t+PH-4);
+    add(text(px-12,ly,fmt(vTarget),{anchor:'end',size:16,fill:'#e23b2e'}));}
+
+  /* equation box (top-left) */
+  document.getElementById('eqbox').innerHTML=
+    `<div class="eqname">${META[state.model].name}（当てはめ式）</div>`+
+    `<div class="eqf">${M.eq}</div>`+
+    `<div class="eqt">t = 大会番号（2006→1, 2010→2, … 2026→6）</div>`;
+
+  /* text panels */
+  document.getElementById('modelName').textContent=META[state.model].name;
+  document.getElementById('vnum').textContent=fmt(vTarget);
+  document.getElementById('vcap').textContent=caption(vTarget,targetYear);
+  const rsq=r2(data,f);
+  document.getElementById('meta').innerHTML=
+    `当てはめのR² = <b>${rsq.toFixed(3)}</b>（データ${data.length}点への適合度。<b>外挿の正しさとは無関係</b>）<br>`+
+    `モデル：${META[state.model].name} ／ ${META[state.model].note}<br><br>`+
+    `<b>R²が高いモデルほど、外挿は派手に裏切ります。</b>`;
+  const cf=document.getElementById('counter');
+  if(state.joke)cf.innerHTML=`🔬 2026年のジョーク点を<b>外す</b>と、同じ${META[state.model].name}でも ${targetYear}年の予測は <b>${fmt(vOther)}</b> ゴール/試合。<br>「${fmt(vTarget)} → ${fmt(vOther)}」——たった1点が外挿を左右します。`;
+  else cf.innerHTML=`🔬 2026年のジョーク点を<b>入れる</b>と、同じ${META[state.model].name}でも ${targetYear}年の予測は <b>${fmt(vOther)}</b> ゴール/試合に跳ね上がります。`;
+}
+if(document.fonts&&document.fonts.ready)document.fonts.ready.then(render);
+render();
+</script>
+</body>
+</html>
