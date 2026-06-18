@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>メッシ ワールドカップ得点 予測マシン</title>
+<title>ワールドカップ得点 予測マシン</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Patrick+Hand&family=Yomogi&display=swap" rel="stylesheet">
@@ -81,15 +81,15 @@
 <body>
 <div class="wrap">
   <header>
-    <h1>リオネル・メッシ</h1>
+    <h1>L. Mxxxi</h1>
     <div class="sub">ワールドカップ 1試合あたり得点 ＝ <b>予測マシン</b></div>
-    <div class="src">実データ：2006(1G/3試合)・2010(0/5)・2014(4/7)・2018(1/4)・2022(7/7)。2026は「現時点」のジョーク点（3G/1試合）。</div>
+    <div class="src">実データ：2006(1G/3試合)・2010(0/5)・2014(4/7)・2018(1/4)・2022(7/7)。2026は「現時点」の点（3G/1試合）。</div>
   </header>
 
   <div class="board">
     <div class="eqbox" id="eqbox"></div>
     <svg class="plot" viewBox="0 0 820 520" role="img"
-      aria-label="メッシのワールドカップ得点と、選択した回帰モデルによる外挿曲線。縦軸は予測値に合わせて自動調整。"></svg>
+      aria-label="某選手のワールドカップ得点と、選択した回帰モデルによる外挿曲線。縦軸は予測値に合わせて自動調整。"></svg>
     <div class="legend">
       <span><i class="sw"></i> 実データ（〜2026）</span>
       <span><i class="sw dash"></i> 外挿（未来＝でっち上げ）</span>
@@ -225,12 +225,12 @@ function fmt(v){if(!isFinite(v))return '∞';const a=Math.abs(v);
   if(a>=1e6)return v.toExponential(1);if(a>=1000)return Math.round(v).toLocaleString('ja-JP');
   if(a>=10)return v.toFixed(0);return v.toFixed(2);}
 function caption(v,year){const x=fmt(v);
-  if(v<0)return `モデル曰く、${year}年のメッシは1試合 ${x} ゴール。実質オウンゴール製造機。外挿、おそろしい。`;
+  if(v<0)return `モデル曰く、${year}年のMxxxiは1試合 ${x} ゴール。実質オウンゴール製造機。外挿、おそろしい。`;
   if(v<1.2)return `${year}年は1試合 ${x} ゴールと予測。現実的すぎて、ジョークになりません。`;
   if(v<4)return `${year}年は1試合 ${x} ゴール。…かろうじて人類の範囲。`;
-  if(v<30)return `この調子だと${year}年、メッシは1試合 ${x} ゴール。1人で相手チームを沈めます。`;
+  if(v<30)return `この調子だと${year}年、Mxxxiは1試合 ${x} ゴール。1人で相手チームを沈めます。`;
   if(v<300)return `この調子だと${year}年、1試合あたり ${x} ゴール。物理法則が抗議しています。`;
-  return `この調子だと、${year}年までにメッシは1試合あたり…${x} ゴールを決めることになる。`;}
+  return `この調子だと、${year}年までにMxxxiは1試合あたり…${x} ゴールを決めることになる。`;}
 
 /* ============ 状態 ＆ UI ============ */
 let state={model:'quartic',yearIdx:3,joke:true};
